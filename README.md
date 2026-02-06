@@ -43,6 +43,7 @@ To handle the symmetry, I use **Burnside's Lemma**.
 * **For Reflections:** I use a separate matrix power $M^{n/2}$ to count configurations that stay the same when flipped.
 
 By combining these, I get the total orbit count using the formula:
+
 $$\frac{\text{rotation\_sum} + \text{reflection\_term}}{2n}$$
 
 ---
