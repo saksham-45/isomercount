@@ -1,99 +1,51 @@
-# Isomer count — oriented cycles under dihedral symmetry (with constraints)
+# Isomer Count: Counting Oriented Cycles with Dihedral Symmetry
 
-Counts distinct oriented cycles on **n** edges up to dihedral symmetry (rotation + reflection), with optional constraints: **adjacency** (no consecutive same-sign nonzero vertex), **primitivity**, and **forbidden subsequences**. The main sequence (adjacency-only) is computed in **polynomial time** via transfer matrix + Burnside’s lemma.
+Hi! This project is a specialized tool I built to count distinct oriented cycles on $n$ edges. Specifically, it handles the tricky math of **dihedral symmetry** (accounting for both rotations and reflections) while applying various constraints like adjacency rules and primitivity.
 
----
-
-## Summary of results
-
-- **Small n (brute-checked):** a(1..15) with adjacency match the brute-force enumeration and known behavior (1, 2, 2, 4, 4, 9, 10, 22, 30, 62, 94, 192, 316, 623, 1096 for no constraints; adjacency-only counts match when using the optimized path).
-- **Large n (optimized path):**
-  - **a(1,000,000):** computed in ~1–2 s (hundreds of thousands of digits).
-  - **a(2,000,000):** **602,054 digits**; computed in **~2.8 s**.
-  - **a(3,000,000):** **903,084 digits**; computed in **~4.5 s**.
-- **Complexity (single n):** Time **O(d(n)·√n + d(n)·log n)**, space **O(d(n))** (worst case O(√n)). No formula used for the main count; everything is computed from the combinatorial construction.
+The core of the project is an optimized "path" that uses a Transfer Matrix approach combined with Burnside's Lemma. This allows me to jump from simple brute-force checks for small $n$ to calculating results for $n = 3,000,000$ in just a few seconds.
 
 ---
 
-## What we count
+## 🚀 Performance Highlights
 
-- **Objects:** Oriented cycles on **n** vertices (or equivalently **n** directed edges on a cycle). Each edge is either 0 (i→i+1) or 1 (i+1→i). We identify two configurations that differ by a **rotation** or a **reflection** (reverse + flip edges).
-- **Vertex signature:** At each vertex we get a value in **{−2, 0, +2}** from the two incident edges (net “in” minus “out”). Valid cycles are automatically **balanced** (same number of +2 and −2).
-- **Constraints (optional):**
-  1. **Adjacency:** No two consecutive nonzero vertex values have the same sign.
-  2. **Primitivity:** The cycle is not a periodic repetition of a shorter cycle (handled via Möbius inversion).
-  3. **Forbidden subsequence:** No cyclic substring of the vertex signature is equivalent to a canonical pattern from a smaller length (used for recursive constraint).
+I’ve optimized the math so that even for massive values of $n$, the computation stays fast:
 
-The main implementation focuses on the **adjacency** constraint and uses no closed formula: counts are derived from the transfer matrix and Burnside.
+* **Small $n$:** Verified against brute-force enumeration for $a(1..15)$.
+* **Large $n$:** * **$n = 1,000,000$:** Computed in ~1–2 seconds.
+    * **$n = 3,000,000$:** Generated a result with **903,084 digits** in about 4.5 seconds.
+* **Complexity:** The time complexity is $O(d(n)\sqrt{n} + d(n)\log n)$, where $d(n)$ is the number of divisors. It’s built to be lean and efficient.
 
 ---
 
-## Why this approach
+## 🔍 What am I counting?
 
-### Why not brute force?
+I’m looking at oriented cycles with $n$ vertices (or $n$ directed edges). Each edge is either 0 or 1. I want to find the number of unique configurations after we ignore versions that are just rotations or reflections (flipping and reversing) of each other.
 
-- Brute force: enumerate all **2^n** edge configurations, reduce by dihedral symmetry, then filter. Time **O(2^n · n)**. For n ≈ 20 this is already heavy; for n = 2,000,000 it is infeasible.
-- So we need a **count method** that avoids enumerating configurations.
-
-### Why transfer matrix?
-
-- The state of the process along the cycle can be summarized by a **bounded state**: e.g. last vertex value and current edge (6 states: 3 vertex values × 2 edges). **Adjacency** is a local rule: it only restricts transitions between consecutive states.
-- So we build a **6×6 transition matrix M**: M[s][t] = 1 if extending from state s by one edge yields state t and the new vertex satisfies adjacency. The number of closed walks of length n with adjacency is then related to **trace(M^n)** (for the correct closure condition) or a small sum over (start, end) state pairs.
-- **Matrix power M^n** is done in **O(log n)** multiplications (binary exponentiation). So we get the “raw” count for period-n sequences in **O(log n)** time with fixed state space.
-
-### Why Burnside?
-
-- We want **orbits** under the dihedral group (n rotations + n reflections), not raw closed sequences. **Burnside’s lemma**: number of orbits = (1/|G|) Σ_g fix(g).
-- **Rotations:** A configuration is fixed by rotation by k iff it has period **gcd(n,k)**. So fix(rotation k) = (number of closed sequences of length **gcd(n,k)** with adjacency). We already have that via the matrix. Sum over k gives a sum over **divisors d of n**: Σ_{d|n} φ(n/d) · (count for length d).
-- **Reflections:** For “reverse + flip” we count sequences fixed by that reflection (e.g. by counting half-length paths that match the reflection condition). Implemented via one more matrix power M^(n/2) and a boundary check.
-- So the total count is **(rot_sum + reflection_term) / (2n)**. No enumeration, only divisor loop + matrix powers + totients.
-
-### Why O(√n) divisors and totient?
-
-- **Divisors:** Naively listing divisors by iterating 1..n is **O(n)**. For n = 2e6 that’s 2 million steps. Instead we iterate **d = 1..√n** and for each d with n % d == 0 we get two divisors: d and n/d. **O(√n)**.
-- **Totient φ(m):** Naively φ(m) = #{ k in 1..m : gcd(k,m)=1 } is **O(m)**. We use **φ(m) = m · Π_{p|m} (1 − 1/p)** and compute the prime factors of m by trial division up to **√m**. **O(√m)**. For m = n/d the total over divisors is still much cheaper than O(n).
-
-Without these optimizations, a single call for n = 2e6 would do millions of divisor/totient steps; with them we get a few thousand and the runtime drops to a few seconds.
-
-### Why no formula for the main count?
-
-- A053656 (no constraints) has a known formula (necklace count + correction). We **do not** use it for the main sequence so that the program is “from scratch”: the count is derived only from the combinatorial construction (edges → vertex signatures → symmetry). The formula is kept only for **verification** (e.g. comparing a(1..15) when no constraints are applied).
+### The Constraints
+I’ve added support for three specific types of constraints:
+1.  **Adjacency:** No two consecutive non-zero vertex values can have the same sign.
+2.  **Primitivity:** I filter out cycles that are just periodic repetitions of shorter cycles (using Möbius inversion).
+3.  **Forbidden Subsequences:** I can block specific cyclic patterns from appearing in the vertex signature.
 
 ---
 
-## Repo layout
+## 🛠️ My Approach
 
-- **`cyclic_sequences.py`** — Main module: transfer matrix, Burnside count, brute enumeration (for small n / verification), constraints (adjacency, primitivity, forbidden), and CLI.
-- **`a053656_binary.py`** — A053656 reference: binary edge encoding, dihedral canonical form, and the **formula** (used only for verification).
-- **`test_cyclic_sequences.py`** — Tests: golden counts for small n and constraint combinations, and checks that the optimized count matches brute where applicable.
-- **`run_custom.py`** — Example script to run the counter (e.g. for a single large n).
+### Why not just brute force it?
+Brute force is fine for $n=20$, but at $n=2,000,000$, it’s impossible. Enumerating $2^n$ configurations would take lifetimes. I needed a way to count without actually listing every possibility.
 
-Large outputs (e.g. full decimals for a(2e6), a(3e6)) are not committed; digit counts and runtimes are summarized above and in this README.
+### The Transfer Matrix Trick
+Instead of listing cycles, I use a **6x6 transition matrix ($M$)**. By looking at the states of the vertices and edges, I can turn the counting problem into a matrix power problem. Using binary exponentiation, I can find the "raw" count in $O(\log n)$ time.
 
----
+### Burnside’s Lemma
+To handle the symmetry, I use **Burnside's Lemma**. 
+* **For Rotations:** I sum the counts for lengths based on the divisors of $n$.
+* **For Reflections:** I use a separate matrix power $M^{n/2}$ to count configurations that stay the same when flipped.
 
-## How to run
-
-```bash
-# Counts for n=1..max_n with optional constraints (brute for small n if needed)
-python3 cyclic_sequences.py --max-n 20 [--adjacency] [--primitive] [--forbidden] [--verbose]
-
-# Single large n (optimized path, adjacency-only) from code:
-# from cyclic_sequences import count_adjacency_burnside
-# count_adjacency_burnside(2_000_000)
-```
-
-Run tests (no pytest required):
-
-```bash
-python3 test_cyclic_sequences.py
-```
+By combining these, I get the total orbit count using the formula:
+$$\frac{\text{rotation\_sum} + \text{reflection\_term}}{2n}$$
 
 ---
 
-## Complexity (recap)
-
-- **Time (single n):** O(d(n)·√n + d(n)·log n) — divisor iteration, totients, and O(log n) matrix work per divisor.
-- **Space:** O(d(n)) for the divisor list; matrix is O(1).
-- **Output size:** a(n) has Θ(n) digits, so storing the decimal is O(n).
-
+## Getting Started
+The main implementation focuses on the **adjacency** constraint. Since I'm using a combinatorial construction rather than a closed-form formula, the code is flexible enough to handle different constraints without a total rewrite.
