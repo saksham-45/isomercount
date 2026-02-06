@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.cursor/
+# Large result files (full decimals; digit counts/samples in README)
+a_2000000.txt
+a_3000000.txt
+result_1m.txt
+result_2000.txt
