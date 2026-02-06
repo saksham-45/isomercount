@@ -97,4 +97,3 @@ python3 test_cyclic_sequences.py
 - **Space:** O(d(n)) for the divisor list; matrix is O(1).
 - **Output size:** a(n) has Θ(n) digits, so storing the decimal is O(n).
 
-This gives the “why we’re fast” and “why we did it this way” behind the implementation and the results above.
