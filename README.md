@@ -1,91 +1,218 @@
-# Isomer count — oriented cycles under dihedral symmetry
+# Combinatorial Enumeration: Cyclic Graphs & Snake Polyominoes
 
-I’m counting distinct oriented cycles on **n** edges up to dihedral symmetry (rotation + reflection). You can turn on extra constraints: **adjacency** (no two consecutive same-sign nonzero vertices), **primitivity**, and **forbidden subsequences**. The main sequence I care about is the adjacency-only one, and I compute it in polynomial time using a transfer matrix and Burnside’s lemma—no brute-force enumeration for large n.
-
----
-
-## What I got
-
-- **Small n:** I checked a(1..15) against brute force and known values (1, 2, 2, 4, 4, 9, 10, 22, 30, 62, …). The optimized path matches.
-- **Big n:**
-  - **a(1,000,000)** — ran in a couple of seconds (hundreds of thousands of digits).
-  - **a(2,000,000)** — **602,054 digits**, about **2.8 seconds**.
-  - **a(3,000,000)** — **903,084 digits**, about **4.5 seconds**.
-- I didn’t use any closed formula for the main count—everything comes from the combinatorial setup. Complexity for a single n is roughly **O(d(n)·√n)** time and **O(d(n))** space (divisors + totients + a tiny matrix).
+Two complementary enumeration projects using **transfer matrices** and **Burnside's lemma** to count distinct structures under symmetry—no brute force, verified for correctness.
 
 ---
 
-## What I’m actually counting
+## Overview
 
-Think of a cycle with **n** vertices and **n** directed edges. Each edge is either “forward” (0) or “backward” (1). At each vertex I get a number in **{−2, 0, +2}** from the two edges meeting there (net in vs out). Valid cycles are automatically balanced. I count these things up to **rotation** and **reflection** (reverse the cycle and flip every edge).
-
-The constraints I added:
-1. **Adjacency** — no two consecutive nonzero vertex values with the same sign.
-2. **Primitivity** — the cycle isn’t just a shorter pattern repeated (I use Möbius inversion for that).
-3. **Forbidden subsequence** — no cyclic substring matches a canonical pattern from a smaller length (for recursive constraints).
-
-The code is built around the **adjacency** case and the fast (matrix + Burnside) path.
+| Project | What it counts | Key features |
+|---------|----------------|--------------|
+| **Cyclic graphs** | Oriented cycles on n edges under dihedral symmetry | Transfer matrix, O(√n) divisors, handles n = millions |
+| **Snake graphs** | Edge-colored chains of squares (polyominoes) | Linear & bent shapes, drawing, export, Burnside orbits |
 
 ---
 
-## Why I did it this way
+# Part 1: Cyclic Graph Sequences
 
-### Why not brute force?
+Count distinct **oriented cycles** on n edges up to rotation and reflection. Each edge is directed (0 or 1); vertices get signatures in {−2, 0, +2} from net flow.
 
-Brute force would mean looping over all **2^n** edge choices, then reducing by symmetry. That’s **O(2^n · n)**. Fine for n ≈ 15, hopeless for millions. So I wanted a way to **count** without listing everything.
+## What we count
 
-### Why a transfer matrix?
+- **Cycle**: n vertices, n directed edges (each 0 or 1)
+- **Vertex signature**: at each vertex, count incoming edges → −2, 0, or +2
+- **Symmetry**: dihedral group (n rotations + n reflections)
+- **Valid**: automatically balanced; optional constraints below
 
-Along the cycle, I only need to remember a small amount: the last vertex value and the current edge. That’s **6 states** (3 vertex values × 2 edges). The adjacency rule is local—it only tells you which next states are allowed. So I built a **6×6** matrix **M** where M[s][t] = 1 if you can go from state s to state t in one step and still satisfy adjacency. Then the number of closed walks of length n is related to **trace(M^n)** (with the right closure condition). Computing **M^n** takes **O(log n)** matrix multiplies, so that part is cheap.
+## Constraints
 
-### Why Burnside?
+| Constraint | Description |
+|------------|-------------|
+| **Adjacency** | No two consecutive nonzero vertex values with the same sign |
+| **Primitivity** | Pattern is not a repeat of a shorter pattern (Möbius inversion) |
+| **Forbidden subsequence** | No cyclic substring matches a canonical pattern from smaller n |
 
-I don’t want “closed sequences”—I want **orbits** under the dihedral group (n rotations + n reflections). Burnside says: number of orbits = (1/|G|) × (sum over group elements of how many configurations they fix). For **rotations**: a config is fixed by rotation by k iff it has period **gcd(n,k)**. So I need the count of closed sequences of length **d** for each divisor **d** of **n**, weighted by **φ(n/d)**. I get those counts from the matrix. For **reflections** I count sequences fixed by “reverse + flip” using one more matrix power (length n/2) and a boundary check. So the final count is **(rot_sum + reflection_term) / (2n)**. No enumeration—just a loop over divisors, a few matrix powers, and some totients.
-
-### Why O(√n) for divisors and totient?
-
-At first I had **divisors(n)** as “loop 1 to n and check n % d == 0”—that’s **O(n)**. For n = 2 million that’s 2 million steps. So I changed it to loop only up to **√n** and for each divisor d I also get n/d. Same list, **O(√n)** time.
-
-For **φ(m)** I was doing “count k in 1..m with gcd(k,m)=1,” which is **O(m)**. I switched to the formula **φ(m) = m · Π(1 − 1/p)** over primes p dividing m, and I get those primes by trial division up to **√m**. So **O(√m)** per totient. With that, a single run for n = 2e6 dropped to a few seconds instead of choking on millions of steps.
-
-### Why no formula for the main count?
-
-A053656 (no constraints) has a known formula. I deliberately don’t use it for the main sequence—I wanted the program to derive the count purely from the combinatorial construction (edges → vertex signatures → symmetry). I kept the formula in the repo only for **verification** (e.g. checking a(1..15) when there are no constraints).
-
----
-
-## What’s in the repo
-
-- **`cyclic_sequences.py`** — Main code: transfer matrix, Burnside count, brute enumeration for small n, constraints, and the CLI.
-- **`a053656_binary.py`** — Reference for A053656: binary encoding, dihedral canonical form, and the formula (verification only).
-- **`test_cyclic_sequences.py`** — Tests with golden counts for small n and different constraint combos; checks that the fast path matches brute where we can.
-- **`run_custom.py`** — Small script to run the counter (e.g. for one large n).
-
-I didn’t commit the huge output files (full decimals for a(2e6), a(3e6)); the digit counts and runtimes are in this README.
-
----
-
-## How to run
+## Usage
 
 ```bash
-# Counts for n=1..max_n with optional constraints
-python3 cyclic_sequences.py --max-n 20 [--adjacency] [--primitive] [--forbidden] [--verbose]
+# Counts for n=1..20 with optional constraints
+python3 cyclic_sequences.py --max-n 20
+python3 cyclic_sequences.py --max-n 20 --adjacency
+python3 cyclic_sequences.py --max-n 20 --adjacency --primitive
+python3 cyclic_sequences.py --max-n 20 --all-constraints
+python3 cyclic_sequences.py --max-n 20 --adjacency --verbose
 
-# For one huge n from Python:
+# Huge n (from Python)
 # from cyclic_sequences import count_adjacency_burnside
-# count_adjacency_burnside(2_000_000)
+# count_adjacency_burnside(2_000_000)  # ~602k digits, ~3 seconds
 ```
 
-Tests (no pytest needed):
+## Files
+
+| File | Purpose |
+|------|---------|
+| `cyclic_sequences.py` | Main: transfer matrix, Burnside count, brute enumeration, CLI |
+| `generate_cyclic_graphs.py` | Enumerate cycles with full labeling; draw with matplotlib |
+| `a053656_binary.py` | A053656 formula reference (verification only) |
+| `test_cyclic_sequences.py` | Golden-count tests; fast path vs brute |
+
+## Performance
+
+- **Small n:** Matches brute force and A053656 for n ≤ 15
+- **Large n:** a(2,000,000) ≈ 602k digits in ~3 seconds
+- **Complexity:** O(d(n)·√n + d(n)·log n) per n; space O(d(n))
+
+## Generate & draw cyclic graphs
+
+```bash
+# List all unique cycles for n=4
+python3 generate_cyclic_graphs.py 4
+
+# With adjacency constraint
+python3 generate_cyclic_graphs.py 6 --adjacency
+
+# With adjacency + primitivity
+python3 generate_cyclic_graphs.py 5 --adjacency --primitive
+
+# Draw with matplotlib
+python3 generate_cyclic_graphs.py 4 --adjacency --draw --save cyclic_graphs_n4.png
+
+# Write to file
+python3 generate_cyclic_graphs.py 5 --adjacency -o graphs_n5.txt
+```
+
+---
+
+# Part 2: Snake Graph Enumeration
+
+Count distinct **edge-colored snake polyominoes**: L square cells arranged in chains or rows, each cell with 4 edges (S,E,N,W) colored 0 or 1. Equivalence under 32-element symmetry (dihedral × reversal × flip).
+
+## What we count
+
+- **Cell**: unit square with 4 edges (S,E,N,W), each 0 or 1
+- **Valid patterns**: sum(edges) ≤ 2 per cell (11 patterns)
+- **Hinge**: consecutive cells share exactly one edge; values must match
+- **Symmetry**: 8 dihedral × path reversal × global 0↔1 flip
+
+## Modes
+
+| Mode | Shapes | L=1..10 totals |
+|------|--------|----------------|
+| **Full snake polyomino** | All bent shapes (A002013) | 4, 21, 296, 3,830, 54,713, … |
+| **Linear** | Only straight line (L cells in a row) | 4, 21, 109, 586, 3,326, … |
+
+## Usage
+
+```bash
+# Table: count for L=1..10
+python3 draw_snake_graph.py --table 10
+python3 draw_snake_graph.py --table 10 --linear
+
+# Count shapes for a given L
+python3 draw_snake_graph.py 5
+python3 draw_snake_graph.py 5 --linear
+
+# Full per-shape breakdown
+python3 draw_snake_graph.py 5 --full
+python3 draw_snake_graph.py 5 --full --linear
+
+# Draw all unique snakes
+python3 draw_snake_graph.py 3 --draw --save snakes_L3.png
+python3 draw_snake_graph.py 3 --draw --linear --save snakes_linear_L3.png
+
+# Export examples to JSON
+python3 draw_snake_graph.py 5 --linear --export linear_L5.json --limit 100
+
+# Draw first 100 (when total is large)
+python3 draw_snake_graph.py 5 --draw --linear --limit 100 --save examples.png
+```
+
+## Options
+
+| Flag | Description |
+|------|-------------|
+| `--table N` | Print count table for L=1..N |
+| `--linear` | Linear only: 1 shape per L |
+| `--full` | Per-shape and total distinct snakes |
+| `--all-shapes` | Include non-snake shapes (U-bends etc.) |
+| `--draw` | Draw all unique snakes with matplotlib |
+| `--save PATH` | Save drawing to file |
+| `--export PATH` | Export examples to JSON |
+| `--limit N` | Draw/export only first N snakes |
+| `--cols N` | Columns in drawing grid (default 5) |
+| `--parallel` | Parallel processing for --table |
+
+## Files
+
+| File | Purpose |
+|------|---------|
+| `draw_snake_graph.py` | Main: enumeration, Burnside, drawing, export |
+| `test_linear_snake.py` | Verification: brute-force vs Burnside, transfer matrix |
+
+## Colors in drawings
+
+- **Blue** = edge value 0  
+- **Red**  = edge value 1  
+
+## Linear sequence (L=1..15)
+
+```
+4, 21, 109, 586, 3326, 19209, 111871, 653758, 3824678, 22387074, 131052313, 767211817, 4491420695, 26293679325, 153927402355
+```
+
+---
+
+# Repo structure
+
+```
+.
+├── cyclic_sequences.py      # Cyclic graph counting
+├── generate_cyclic_graphs.py # Cyclic graph enumeration & drawing
+├── a053656_binary.py        # A053656 formula reference
+├── draw_snake_graph.py      # Snake graph counting & drawing
+├── test_cyclic_sequences.py # Cyclic tests
+├── test_linear_snake.py     # Snake tests
+├── run_custom.py            # Custom run script
+└── *.png                    # Generated images
+```
+
+---
+
+# Tests
 
 ```bash
 python3 test_cyclic_sequences.py
+python3 test_linear_snake.py
 ```
 
 ---
 
-## Complexity in a sentence
+# Dependencies
 
-For a single **n**: time **O(d(n)·√n + d(n)·log n)** (divisors, totients, matrix), space **O(d(n))**; the answer a(n) itself has about **Θ(n)** digits if you write it out.
+- Python 3.7+
+- **matplotlib** (optional, for `--draw` in both modules)
 
-That’s the project—why it’s fast and why I built it this way.
+```bash
+pip install matplotlib
+# or use the project venv: source .venv/bin/activate
+```
+
+---
+
+# Concepts
+
+Both projects use:
+
+- **Transfer matrix** — local state transitions; count without listing
+- **Burnside's lemma** — orbits under symmetry; avoid overcounting
+- **Canonical form** — one representative per equivalence class
+- **Constraints** — local rules (adjacency, forbidden patterns) that compose
+
+---
+
+# References
+
+- OEIS [A053656](https://oeis.org/A053656) — oriented cycles (no constraints)
+- OEIS [A002013](https://oeis.org/A002013) — snake polyomino shapes
+- [Burnside's lemma](https://en.wikipedia.org/wiki/Burnside%27s_lemma)
+- [Transfer matrix method](https://en.wikipedia.org/wiki/Transfer-matrix_method)
