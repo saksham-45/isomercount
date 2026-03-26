@@ -2,6 +2,19 @@
 
 Two complementary enumeration projects using **transfer matrices** and **Burnside's lemma** to count distinct structures under symmetry—no brute force, verified for correctness.
 
+## Repository layout
+
+- `src/cyclic/`: cyclic (ring) counting implementation
+- `src/snakes/`: snake/linear counting implementation
+- `src/analysis/`: recurrence/asymptotic/verification helpers
+- `tests/`: test modules
+- `docs/`: LaTeX sources and bibliography
+- `figures/`: generated PNGs
+- `data/`: generated tables/exports/large outputs
+- `output/pdf/`: compiled PDFs (`ass1.pdf`, `ass2.pdf`, etc.)
+
+Root-level scripts like `cyclic_sequences.py` and `draw_snake_graph.py` are thin wrappers kept for backwards-compatible CLI usage.
+
 ---
 
 ## Overview
@@ -51,10 +64,10 @@ python3 cyclic_sequences.py --max-n 20 --adjacency --verbose
 
 | File | Purpose |
 |------|---------|
-| `cyclic_sequences.py` | Main: transfer matrix, Burnside count, brute enumeration, CLI |
-| `generate_cyclic_graphs.py` | Enumerate cycles with full labeling; draw with matplotlib |
-| `a053656_binary.py` | A053656 formula reference (verification only) |
-| `test_cyclic_sequences.py` | Golden-count tests; fast path vs brute |
+| `src/cyclic/cyclic_sequences.py` | Main: transfer matrix, Burnside count, brute enumeration, CLI |
+| `src/cyclic/generate_cyclic_graphs.py` | Enumerate cycles with full labeling; draw with matplotlib |
+| `src/cyclic/a053656_binary.py` | A053656 formula reference (verification only) |
+| `tests/test_cyclic_sequences.py` | Golden-count tests; fast path vs brute |
 
 ## Performance
 
@@ -146,8 +159,10 @@ python3 draw_snake_graph.py 5 --draw --linear --limit 100 --save examples.png
 
 | File | Purpose |
 |------|---------|
-| `draw_snake_graph.py` | Main: enumeration, Burnside, drawing, export |
-| `test_linear_snake.py` | Verification: brute-force vs Burnside, transfer matrix |
+| `src/snakes/draw_snake_graph.py` | Main: enumeration, Burnside, drawing, export |
+| `src/snakes/compute_components.py` | Fast fixed-point counting for linear arrangement |
+| `src/snakes/regenerate_linear_snake_sequence.py` | Regenerate linear sequence; verify recurrences |
+| `tests/test_linear_snake.py` | Verification: brute-force vs Burnside, transfer matrix |
 
 ## Colors in drawings
 
@@ -162,27 +177,13 @@ python3 draw_snake_graph.py 5 --draw --linear --limit 100 --save examples.png
 
 ---
 
-# Repo structure
-
-```
-.
-├── cyclic_sequences.py      # Cyclic graph counting
-├── generate_cyclic_graphs.py # Cyclic graph enumeration & drawing
-├── a053656_binary.py        # A053656 formula reference
-├── draw_snake_graph.py      # Snake graph counting & drawing
-├── test_cyclic_sequences.py # Cyclic tests
-├── test_linear_snake.py     # Snake tests
-├── run_custom.py            # Custom run script
-└── *.png                    # Generated images
-```
-
 ---
 
 # Tests
 
 ```bash
-python3 test_cyclic_sequences.py
-python3 test_linear_snake.py
+python3 test_cyclic_sequences.py      # wrapper (runs tests/test_cyclic_sequences.py)
+python3 test_linear_snake.py          # wrapper (runs tests/test_linear_snake.py)
 ```
 
 ---

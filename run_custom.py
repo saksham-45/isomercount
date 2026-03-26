@@ -1,6 +1,7 @@
-from cyclic_sequences import count_adjacency_burnside
+#!/usr/bin/env python3
+"""Compatibility wrapper.
 
-n = 4
-print(f"Calculating for n={n}...")
-count = count_adjacency_burnside(n)
-print(f"Result: {count}")
+Implementation: src/analysis/run_custom.py
+"""
+
+from src.analysis.run_custom import *  # noqa: F401,F403

@@ -1,0 +1,116 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage[numbers]{natbib}
+\geometry{margin=1in}
+\setlist[itemize]{leftmargin=1.3em}
+\setlist[enumerate]{leftmargin=1.5em}
+
+\title{Counting Oriented Cycles Up to Dihedral Symmetry}
+\author{}
+\date{March 10, 2026}
+
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+\newtheorem{remark}[definition]{Remark}
+\newtheorem{example}[definition]{Example}
+\newtheorem{lemma}[definition]{Lemma}
+\newtheorem{corollary}[definition]{Corollary}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+I count directed cycles on \(n\) edges under dihedral symmetry using a small transfer matrix coupled with Burnside's lemma. The adjacency rule forbids like-signed nonzero vertex signatures from being adjacent. A 6-state transfer matrix produces closed-walk counts; Burnside aggregates rotation and reflection fixed points to yield exact orbit counts. A full example for \(n=8\) reproduces the program values \(288\), \(64\), and \(22\). Optional primitivity and forbidden-subsequence filters follow immediately. Small \(n\) results match brute force and OEIS A053656.
+\end{abstract}
+
+\section{Model}
+A cycle is encoded by a binary edge sequence \((e_0,\dots,e_{n-1})\in\{0,1\}^n\). Edge \(i\) connects vertices \(i\) and \(i+1\pmod n\). Bit \(0\) orients clockwise, bit \(1\) counterclockwise. At vertex \(v\) I define the signature
+\[
+\sigma(v)=2\cdot(\text{incoming edges at }v)-2\in\{-2,0,+2\}.
+\]
+\textbf{Adjacency rule.} Nonzero signatures of the same sign may not be adjacent around the cycle.
+
+\section{Symmetry}
+The dihedral group \(D_n\) (\(n\) rotations, \(n\) reflections; size \(2n\)) acts on edge sequences. A reflection reverses order and flips bits \(0\leftrightarrow1\) to preserve geometric direction. Two sequences are equivalent if related by an element of \(D_n\). Counting distinct cycles means counting orbits of this action.
+
+\section{Transfer matrix}
+Local state \(s=(v,e)\) records previous vertex signature \(v\in\{-2,0,+2\}\) and current edge bit \(e\in\{0,1\}\); six states total. Given current edge \(e\) and next edge \(e'\), the next signature is
+\[
+\sigma' = 2(\mathbf{1}_{e=0}+\mathbf{1}_{e'=1})-2.
+\]
+I admit a transition \((v,e)\to(\sigma',e')\) only if the adjacency rule holds for \(v,\sigma'\). The resulting \(6\times6\) matrix \(M\) has entries 1 for allowed transitions, 0 otherwise. The number of valid length-\(m\) closed walks is
+\[
+C(m)=\operatorname{tr}(M^m).
+\]
+
+\section{Burnside aggregation}
+\paragraph{Rotations.} A rotation by \(k\) fixes sequences with period \(d=\gcd(n,k)\). Grouping rotations by \(d\) yields
+\[
+\text{RotSum}(n)=\sum_{d\mid n}\varphi\!\left(\tfrac{n}{d}\right) C(d),
+\]
+with Euler totient \(\varphi\).
+\paragraph{Reflections.} For even \(n\), a half-length transfer with symmetry boundary conditions gives \(R(n)\), the number of reflection-fixed sequences; for odd \(n\), \(R(n)=0\). The reflection contribution is \(\tfrac{n}{2}R(n)\).
+\paragraph{Orbit count.}
+\[
+ a(n)=\frac{\text{RotSum}(n)+\text{RefTerm}(n)}{2n},\qquad \text{RefTerm}(n)=\tfrac{n}{2}R(n).
+\]
+
+\section{Worked example: \(n=8\)}
+Divisors: \(1,2,4,8\). Transfer powers give
+\[
+C(1)=2,\quad C(2)=4,\quad C(4)=16,\quad C(8)=256.
+\]
+Weighted by totient:
+\[
+\text{RotSum}(8)=4\cdot2+2\cdot4+1\cdot16+1\cdot256=288.
+\]
+Reflection routine: \(R(8)=16\), so \(\text{RefTerm}(8)=4\times16=64\). Therefore
+\[
+ a(8)=\tfrac{288+64}{16}=22.
+\]
+
+\section{Optional filters}
+\paragraph{Primitivity.} Using Möbius inversion,
+\[
+ a_{\mathrm{prim}}(n)=\sum_{d\mid n}\mu(d)\, a\!\left(\tfrac{n}{d}\right).
+\]
+\paragraph{Forbidden subsequences.} Canonical signatures from smaller \(n\) may be declared forbidden; a length-\(n\) signature is rejected if any cyclic substring matches a forbidden canonical representative. This path enumerates signatures directly (used for small \(n\)).
+
+\section{Validation and cost}
+For \(n\le15\) I compare Burnside+transfer counts with brute-force canonical enumeration; they agree. Unconstrained counts match OEIS A053656 on the tested range. Runtime is driven by divisor iteration and fast exponentiation of the fixed 6-state matrix, so million-scale \(n\) is practical.
+
+\section{Outlook}
+Next steps include asymptotic constants under additional local rules and extending the forbidden-subsequence filter with transfer-based acceleration.
+
+\section{Connection to the six-vertex model}
+The SIAM News article on \emph{active hydraulics} describes a square grid of pipes where the flow at each junction satisfies a local conservation rule: two streams enter and two leave, so each junction has exactly six admissible arrow patterns \cite{FrancisSIAM2025,JorgeBartoloPRL2025}. This is the classical \emph{six-vertex (square ice) model} introduced to idealize hydrogen bonding in ice \cite{PaulingJACS1935} and solved via transfer-matrix methods in statistical mechanics \cite{LiebPhysRev1967,SutherlandPRL1967,BaxterBook1982}.
+
+My cyclic-counting project is not the six-vertex model, but the methodology lines up closely:
+\begin{itemize}
+    \item In both settings, the global object is built from \emph{local compatibility rules}. In my case the adjacency constraint is checked from consecutive vertex signatures; in the six-vertex model the ice rule is checked at each vertex.
+    \item In both settings, a \emph{transfer matrix} packages local rules into a finite-state automaton. For my cycle it is a \(6\times 6\) matrix for allowed local steps; in the six-vertex model one uses a row-to-row transfer matrix to compute the partition function.
+    \item In both settings, periodic boundary conditions naturally lead to \(\operatorname{tr}(M^n)\)-type expressions (counting closed walks, or counting configurations on a ring/torus).
+    \item The \emph{symmetry quotient} I take with Burnside (dihedral rotations/reflections of a cycle) parallels the general idea of identifying physically/structurally equivalent configurations. In the active-hydraulics experiment, symmetries also pair junction types (mirror-related vertices) and help explain which local states are energetically or statistically equivalent \cite{FrancisSIAM2025}.
+\end{itemize}
+
+This connection is useful for exposition: it justifies why transfer matrices are a standard tool for lattice counting problems, and it frames Burnside's lemma as the ``group-quotient layer'' that sits on top of a transfer-matrix count when we also want to identify configurations under rotation/reflection.
+
+\section{Real-world use case (how this solves a design question)}
+In a lab or device context, one often wants to know how many \emph{distinct} steady patterns a symmetric ring-like network can realize under a local rule. For example, consider an \(n\)-module circular device whose local module rule is encoded by an adjacency constraint (preventing two ``same-sign'' active junctions in a row) and whose physical symmetries identify configurations under rotation and flip of the ring. My computation answers:
+\begin{itemize}
+    \item \emph{How many admissible global configurations exist?} (transfer-matrix closed-walk count)
+    \item \emph{How many of those are genuinely different once the device symmetries are taken into account?} (Burnside orbit count)
+\end{itemize}
+This is immediately practical for experimental design (how many nonredundant states to test) and for information-capacity estimates (how many unique steady configurations the device can represent).
+
+\bibliographystyle{amsplain}
+\bibliography{six_vertex_refs}
+
+\end{document}

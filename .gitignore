@@ -1,8 +1,32 @@
+# OS
+.DS_Store
+
+# Python
 __pycache__/
-*.pyc
-.cursor/
-# Large result files (full decimals; digit counts/samples in README)
-a_2000000.txt
-a_3000000.txt
-result_1m.txt
-result_2000.txt
+*.py[cod]
+.venv/
+
+# Scratch
+tmp/
+
+# Local/other project files not part of this repo
+verilog/
+*.zip
+
+# LaTeX build artifacts
+**/*.aux
+**/*.log
+**/*.out
+**/*.toc
+**/*.bbl
+**/*.blg
+**/*.synctex.gz
+
+# Keep TeX sources but avoid committing compiled PDFs by default
+# (Final PDFs live in output/pdf/ if you want to commit them explicitly.)
+docs/build/
+
+
+# Large generated outputs (keep locally, don't push)
+data/a_*.txt
+data/result_*.txt

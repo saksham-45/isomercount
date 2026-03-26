@@ -1,0 +1,332 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\geometry{margin=1in}
+\setlist[itemize]{leftmargin=1.4em}
+\setlist[enumerate]{leftmargin=1.6em}
+
+\title{Cyclic Oriented Graph Counting\\\large Complete Guided Notes for Your Project}
+\author{}
+\date{March 5, 2026}
+
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+\newtheorem{remark}[definition]{Remark}
+\newtheorem{example}[definition]{Example}
+\newtheorem{proposition}[definition]{Proposition}
+\newtheorem{theorem}[definition]{Theorem}
+\newtheorem{lemma}[definition]{Lemma}
+\newtheorem{corollary}[definition]{Corollary}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This note explains the cyclic counting part of your project in a proof-style but beginner-friendly way. It defines every object, every symmetry, and every formula used by the code path \texttt{count\_adjacency\_burnside(n)} in \texttt{cyclic\_sequences.py}. It also includes a full worked example for \(n=8\), matching the exact computed values \(288\), \(64\), and final answer \(22\).
+\end{abstract}
+
+\tableofcontents
+
+\section{What Problem Is Being Solved?}
+We study directed cycles with \(n\) edges. Each edge gets one of two orientations:
+\begin{itemize}
+    \item bit \(0\): edge points from vertex \(i\) to \(i+1\) (mod \(n\));
+    \item bit \(1\): edge points from vertex \(i+1\) to \(i\).
+\end{itemize}
+So each object is a binary sequence \((e_0,\dots,e_{n-1})\in\{0,1\}^n\).
+
+The target is not the raw number \(2^n\). We count \emph{distinct objects up to symmetry} (rotations and reflections). Optionally, we enforce constraints such as adjacency and primitivity.
+
+\section{Core Objects and Definitions}
+\subsection{Cycle and indexing}
+Vertices are \(V=\{0,1,\dots,n-1\}\), arranged cyclically. Edge \(i\) connects vertex \(i\) and vertex \(i+1\pmod n\).
+
+\subsection{Vertex signature}
+At each vertex \(v\), two incident edges determine a signature in \(\{-2,0,+2\}\):
+\[
+\sigma(v)=2\cdot(\text{number of incoming incident edges at }v)-2.
+\]
+So:
+\begin{itemize}
+    \item \(-2\): both incident edges point out of \(v\),
+    \item \(0\): one in and one out,
+    \item \(+2\): both point into \(v\).
+\end{itemize}
+
+\subsection{Adjacency constraint (project default fast path)}
+The code enforces:
+\[
+\text{No consecutive nonzero signatures with the same sign.}
+\]
+So \((+2,+2)\) and \((-2,-2)\) adjacent are forbidden, while \((+2,-2)\), \((0,+2)\), etc. are allowed.
+
+\section{Symmetry: Why We Need Group Actions}
+\begin{definition}[Dihedral group \(D_n\)]
+\(D_n\) is the symmetry group of an \(n\)-gon. It has:
+\begin{itemize}
+    \item \(n\) rotations,
+    \item \(n\) reflections,
+\end{itemize}
+for total size \(|D_n|=2n\).
+\end{definition}
+
+\begin{definition}[Action on edge sequences]
+Your code uses:
+\begin{itemize}
+    \item rotations: cyclic shifts of the bit sequence,
+    \item reflections: reverse order \emph{and} flip bits \(0\leftrightarrow1\).
+\end{itemize}
+The bit flip is necessary because reflection reverses geometric direction of each edge.
+\end{definition}
+
+\begin{definition}[Equivalent objects]
+Two sequences are equivalent if one is obtained from the other by some element of \(D_n\).
+\end{definition}
+
+\begin{definition}[Orbit]
+The orbit of an object is all sequences reachable by these symmetries. One orbit = one distinct graph in your count.
+\end{definition}
+
+\section{Canonical Representative}
+For brute checks, the program computes a canonical form:
+\begin{enumerate}
+    \item generate all rotations of the sequence,
+    \item generate all rotations of reflected-and-bit-flipped sequence,
+    \item choose lexicographically smallest candidate.
+\end{enumerate}
+This gives one deterministic representative per orbit.
+
+\section{Burnside Lemma: The Orbit Counter}
+\subsection{Statement}
+\begin{theorem}[Burnside]
+For a finite group \(G\) acting on finite set \(X\),
+\[
+\#(X/G)=\frac{1}{|G|}\sum_{g\in G}|\mathrm{Fix}(g)|,
+\]
+where \(\mathrm{Fix}(g)=\{x\in X:\ g\cdot x=x\}\).
+\end{theorem}
+
+\subsection{What ``fixed'' means}
+For one symmetry \(g\), an object is \emph{fixed} if applying \(g\) leaves it exactly unchanged.
+
+Example: if rotating by 2 steps maps a sequence to itself, that sequence contributes to \(|\mathrm{Fix}(g)|\) for that rotation.
+
+\subsection{Why this is correct (double-counting sketch)}
+Count pairs \((g,x)\) with \(g\cdot x=x\) in two ways:
+\begin{itemize}
+    \item by symmetry first: \(\sum_g |\mathrm{Fix}(g)|\),
+    \item by object first: \(\sum_x |\mathrm{Stab}(x)|\).
+\end{itemize}
+Using orbit-stabilizer, \(|\mathrm{Stab}(x)|\) summed over each orbit equals \(|G|\), so total is \(|G|\times\#\text{orbits}\). Rearranging yields Burnside.
+
+\section{Why Burnside Alone Is Not Enough}
+Burnside tells \emph{how to combine} fixed counts. It does not magically compute those counts.
+
+So we still need fast methods for \(|\mathrm{Fix}(g)|\). That is where transfer matrices enter.
+
+\section{Transfer Matrix for Adjacency-valid Cycles}
+\subsection{State space used in your code}
+A local state is:
+\[
+s=(v,e),\quad v\in\{-2,0,+2\},\ e\in\{0,1\}.
+\]
+So there are 6 states total.
+
+Interpretation:
+\begin{itemize}
+    \item \(e\) is current edge bit,
+    \item \(v\) is signature of the previous vertex.
+\end{itemize}
+
+\subsection{One-step update}
+Given current edge \(e\) and next edge \(e'\), the next vertex signature is
+\[
+v' = 2\big(\mathbf{1}_{e=0}+\mathbf{1}_{e'=1}\big)-2.
+\]
+Transition is allowed only if adjacency rule holds between \(v\) and \(v'\).
+
+\subsection{Matrix construction}
+Define \(M\in\mathbb{Z}_{\ge 0}^{6\times 6}\) by
+\[
+M_{ij}=\begin{cases}
+1,&\text{if transition state }i\to j\text{ is allowed},\\
+0,&\text{otherwise.}
+\end{cases}
+\]
+In your state order
+\[
+(-2,0),(-2,1),(0,0),(0,1),(2,0),(2,1),
+\]
+this matrix is
+\[
+M=
+\begin{pmatrix}
+0&0&1&0&0&1\\
+0&0&0&1&0&0\\
+0&0&1&0&0&1\\
+1&0&0&1&0&0\\
+0&0&1&0&0&0\\
+1&0&0&1&0&0
+\end{pmatrix}.
+\]
+
+\subsection{Closed walks and trace}
+\begin{lemma}
+\((M^m)_{ij}\) equals the number of length-\(m\) valid state paths from \(i\) to \(j\).
+\end{lemma}
+
+\begin{corollary}
+The number of valid length-\(m\) closed state walks is
+\[
+C(m)=\mathrm{tr}(M^m).
+\]
+\end{corollary}
+
+This \(C(m)\) is the key primitive used in Burnside rotation counts.
+
+\section{Burnside Rotation Term in This Project}
+For a rotation by \(k\), fixed sequences have period \(d=\gcd(n,k)\). Grouping rotations by \(d\) yields:
+\[
+\text{RotSum}(n)=\sum_{d\mid n} \varphi\!\left(\frac{n}{d}\right) C(d),
+\]
+where \(\varphi\) is Euler totient.
+
+Interpretation:
+\begin{itemize}
+    \item \(C(d)\): how many base periodic blocks of length \(d\) satisfy local rules,
+    \item \(\varphi(n/d)\): how many rotations have gcd class corresponding to that \(d\).
+\end{itemize}
+
+\section{Burnside Reflection Term in This Project}
+Your code has a separate routine for reflections:
+\begin{itemize}
+    \item if \(n\) is odd: reflection-fixed count is 0,
+    \item if \(n\) is even: compute half-length transfer and enforce reflection boundary compatibility.
+\end{itemize}
+Define this code-computed number as \(R(n)\).
+
+Then reflection contribution to Burnside sum is:
+\[
+\text{RefTerm}(n)=\frac{n}{2}\,R(n),
+\]
+matching your implementation.
+
+\section{Final Counting Formula in Code}
+For \(n\ge1\):
+\[
+a(n)=\frac{\text{RotSum}(n)+\text{RefTerm}(n)}{2n}
+=\frac{1}{2n}\left(\sum_{d\mid n}\varphi\!\left(\frac{n}{d}\right)\mathrm{tr}(M^d)+\frac{n}{2}R(n)\right).
+\]
+This is exactly the fast adjacency count route in your cyclic code.
+
+\section{Worked Example: \(n=8\) (Exact Values From Your Program)}
+Divisors of 8 are \(1,2,4,8\).
+
+\begin{center}
+\begin{tabular}{cccc}
+\toprule
+\(d\) & \(\varphi(8/d)\) & \(C(d)=\mathrm{tr}(M^d)\) & contribution \\
+\midrule
+1 & 4 & 2   & 8   \\
+2 & 2 & 4   & 8   \\
+4 & 1 & 16  & 16  \\
+8 & 1 & 256 & 256 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+So
+\[
+\text{RotSum}(8)=8+8+16+256=288.
+\]
+
+From reflection routine:
+\[
+R(8)=16,
+\quad
+\text{RefTerm}(8)=\frac{8}{2}\cdot16=64.
+\]
+
+Final Burnside average:
+\[
+a(8)=\frac{288+64}{16}=\frac{352}{16}=22.
+\]
+So your program returns \(22\) distinct oriented cyclic graphs (with adjacency rule).
+
+\section{Optional Constraints in the Cyclic Module}
+\subsection{Primitivity}
+A sequence is primitive if it is not a repetition of a shorter block.
+
+Code fast formula uses Mobius inversion:
+\[
+a_{\mathrm{prim}}(n)=\sum_{d\mid n}\mu(d)\,a\!\left(\frac{n}{d}\right),
+\]
+where \(\mu\) is the Mobius function.
+
+\subsection{Forbidden subsequence mode}
+A signature is rejected if any cyclic contiguous block matches a canonical forbidden pattern learned from smaller lengths. This route uses explicit set-based enumeration (not the adjacency fast matrix shortcut).
+
+\section{Validation and Correctness Strategy}
+Your pipeline validates in layers:
+\begin{enumerate}
+    \item Brute-force canonical enumeration for small \(n\).
+    \item Fast Burnside+matrix counts for adjacency mode.
+    \item Assert equality on overlapping range.
+    \item Compare unconstrained small terms with OEIS A053656 values.
+\end{enumerate}
+
+This is strong because independent methods agree on the same outputs.
+
+\section{Complexity Intuition}
+Brute force is \(O(2^n)\), so it explodes quickly.
+
+Fast path uses:
+\begin{itemize}
+    \item divisor loop (depends on number of divisors),
+    \item totient and Mobius on divisor arguments,
+    \item matrix powers (small fixed size matrix, logarithmic exponentiation depth).
+\end{itemize}
+Hence very large \(n\) is feasible.
+
+\section{Presentation-ready 90-second summary}
+``I model each directed cycle as a binary edge sequence and quotient by dihedral symmetry, so I count true isomorphism classes, not raw strings. Burnside lemma says the number of classes is the average fixed-point count over all symmetries. To compute those fixed counts efficiently, I use a transfer matrix on 6 local states that encode the previous vertex signature and current edge orientation, with adjacency constraint built into allowed transitions. Rotation-fixed counts reduce to weighted trace terms over divisors, and reflection-fixed counts are computed by half-length transfer with boundary compatibility. For example at \(n=8\), rotation sum is 288 and reflection term is 64, giving \((288+64)/16=22\) distinct classes. Small \(n\) is cross-checked by brute-force canonical enumeration and OEIS values.''
+
+\section{Glossary of Symbols}
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.22\linewidth}p{0.72\linewidth}}
+\toprule
+Symbol & Meaning \\
+\midrule
+\(n\) & cycle length (number of edges and vertices) \\
+\(e_i\) & edge orientation bit at edge \(i\), in \(\{0,1\}\) \\
+\(\sigma(v)\) & vertex signature at vertex \(v\), in \(\{-2,0,+2\}\) \\
+\(D_n\) & dihedral group of order \(2n\) \\
+\(G\) & symmetry group acting on objects \\
+\(\mathrm{Fix}(g)\) & objects unchanged by symmetry \(g\) \\
+\(M\) & transfer matrix on 6 local states \\
+\(C(m)\) & \(\mathrm{tr}(M^m)\), number of length-\(m\) closed state walks \\
+\(\varphi\) & Euler totient function \\
+\(\mu\) & Mobius function \\
+\(R(n)\) & reflection-fixed count computed by reflection routine \\
+\(a(n)\) & final orbit count (distinct cyclic graphs) \\
+\bottomrule
+\end{longtable}
+
+\section{Takeaway}
+Your cyclic module is mathematically clean:
+\begin{enumerate}
+    \item define equivalence by dihedral action,
+    \item compute fixed counts efficiently by transfer matrices,
+    \item assemble exact orbit counts by Burnside,
+    \item validate against brute force and known sequences.
+\end{enumerate}
+That is why the method is both rigorous and scalable.
+
+\end{document}
