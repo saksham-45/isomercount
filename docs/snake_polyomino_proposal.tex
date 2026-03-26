@@ -1,0 +1,130 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage[numbers]{natbib}
+\geometry{margin=1in}
+\setlist[itemize]{leftmargin=1.3em}
+\setlist[enumerate]{leftmargin=1.5em}
+
+\title{Counting Colored Linear Snake Polyominoes Up to Symmetry}
+\author{}
+\date{March 10, 2026}
+
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+\newtheorem{remark}[definition]{Remark}
+\newtheorem{lemma}[definition]{Lemma}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+I count colored snake polyominoes in their linear arrangement: \(L\) cells in a straight line, each with binary edge colors and degree constraint \(\sum\le2\). The single linear shape isolates the coloring problem. A 2-state transfer matrix yields raw counts; a Burnside-style average over the line stabilizer (with global flip) gives orbit counts. The worked example \(L=2\) produces 65 raw colorings and 21 distinct orbits. The linear orbit sequence starts \(4,21,109,586,3326,\dots\) and matches brute force and project tests through \(L=15\).
+\end{abstract}
+
+\section{Linear model}
+Shape: \(L\) consecutive unit squares on a line. Each cell has edge bits \((S,E,N,W)\in\{0,1\}^4\) with degree constraint \(\sum\le2\), giving 11 admissible patterns. Adjacent cells must agree on the shared hinge edge. With geometry fixed, the task reduces to counting colorings and collapsing symmetries.
+
+\section{Symmetry}
+For \(L>1\) the geometric stabilizer \(G_0\) has 4 elements (identity, path reversal, reflection across the line, reflection composed with reversal); for \(L=1\), \(|G_0|=8\). Adding global color flip yields acting group \(G=G_0\times\{\text{id},\text{flip}\}\). Distinct linear snakes are orbits of colorings under \(G\).
+
+\section{Transfer matrix}
+Only the hinge bit (0 or 1) passes between cells. Over the 11 admissible patterns, the West\(\to\)East transfer matrix is
+\[
+M=\begin{pmatrix}4&3\\3&1\end{pmatrix},
+\]
+rows = entry bit, columns = exit bit. Endpoint vectors are \(v_{\text{in}}=v_{\text{out}}=(7,4)\). Raw colorings:
+\[
+\text{Raw}(L)=v_{\text{in}} M^{L-2} v_{\text{out}}^{\top},\qquad \text{Raw}(1)=11.
+\]
+
+\section{Burnside over the line stabilizer}
+Let \(\mathrm{Fix}_V(g)\) be colorings fixed by \(g\) with all 11 patterns; \(\mathrm{Fix}_{\text{both}}(g)\) restricts to degree-2 patterns (needed for the flip terms). The orbit count is
+\[
+N(L)=\frac{2\sum_{g\in G_0} |\mathrm{Fix}_V(g)|-\sum_{g\in G_0} |\mathrm{Fix}_{\text{both}}(g)|+\sum_{g\in G_0} |\mathrm{Fix}_{\text{both}}(f\circ g)|}{2\,|G_0|},
+\]
+with \(f\) the global flip. For \(L>1\), \(|G_0|=4\); for \(L=1\), \(|G_0|=8\).
+
+\section{Worked example: \(L=2\)}
+\begin{itemize}
+    \item Raw: \(\text{Raw}(2)=65\).
+    \item \(|G_0|=4\), full group size 8.
+    \item Burnside numerator yields \(N(2)=21\).
+\end{itemize}
+So 21 distinct linear colored snakes of length 2.
+
+\section{Linear sequence}
+Orbit counts (transfer + Burnside) for the linear arrangement:
+\[
+\begin{aligned}
+&4,\ 21,\ 109,\ 586,\ 3326,\ 19209,\ 111871,\ 653758,\\
+&3824678,\ 22387074,\ 131052313,\ 767211817,\\
+&4491420695,\ 26293679325,\ 153927402355\quad (L=1..15).
+\end{aligned}
+\]
+\textbf{Raw counts} (transfer only) start \(11,65,380,2196,12804,\dots\); orbit counts are smaller after symmetry collapse.
+
+\section{Validation and cost}
+Tests cover: (i) brute-force orbit vs Burnside for \(L\le3\); (ii) raw vs transfer for \(L\le3\); (iii) Burnside numerator divisibility for \(L\le8\). All pass. Computation for linear counts is dominated by fast powers of the \(2\times2\) matrix; large \(L\) is cheap.
+
+\section{Beyond the line (context only)}
+For bent snakes, shapes are enumerated once with pruning; the same coloring + Burnside routine applies per shape, then totals are summed. Those results are secondary here; focus remains the linear sequence above.
+
+\section{Outlook}
+Next steps: degree-exact (sum=2) variants, weighted edges, and extracting characteristic polynomials to study linear-snake asymptotics.
+
+\section{Exact recurrence and closed form (linear arrangement)}
+Because the linear arrangement is counted by a finite-state transfer-matrix/Burnside computation, the orbit sequence \(N(L)\) is \emph{(eventually) linear-recursive}: there exist constants \(c_0,\dots,c_{d-1}\) such that
+\[
+N(L)=\sum_{j=0}^{d-1} c_j\,N(L-1-j)\qquad (L\ \text{large enough}).
+\]
+In my project, the smallest recurrence I verified for the full linear-orbit sequence has order \(d=12\) and holds for all \(L\ge 14\):
+\[
+\begin{aligned}
+N(L)=\;&12N(L-1)-38N(L-2)-38N(L-3)+370N(L-4)-394N(L-5)\\
+&-556N(L-6)+1160N(L-7)-690N(L-8)+370N(L-9)+330N(L-10)\\
+&-750N(L-11)+225N(L-12)\qquad(L\ge 14),
+\end{aligned}
+\]
+with initial values \(N(1),\dots,N(13)\) taken from the transfer/Burnside computation (so the recurrence produces exact integers thereafter).
+
+\paragraph{What ``closed form'' means here.}
+For a constant-coefficient recurrence, the standard closed form is a sum of exponentials
+\[
+N(L)=\sum_{i=1}^{m} A_i\,\lambda_i^{\,L},
+\]
+where \(\lambda_i\) are the distinct roots of the characteristic polynomial of the recurrence and the coefficients \(A_i\) are determined uniquely by matching enough initial values. In my case the characteristic polynomial factors as
+\[
+(x-3)(x-1)(x^2-3)(x^2-5x-5)(x^2-3x+1)(x^4-5x^2-5),
+\]
+so all \(\lambda_i\) are explicit algebraic numbers (combinations of \(\sqrt{3}\) and \(\sqrt{5}\), plus a complex-conjugate pair coming from the negative root of \(x^2-5x-5\)).
+
+\paragraph{Why the \(\lambda^L\) formula is not exact.}
+The number
+\[
+\lambda=\frac{5+3\sqrt5}{2}\approx 5.854101966
+\]
+is the \emph{dominant} characteristic root, so it governs the \emph{asymptotic} growth
+\[
+N(L)\sim C\,\lambda^L
+\]
+for an explicit constant \(C\). This approximation keeps only the largest-magnitude exponential term and drops the other \(11\) terms, so it cannot agree \emph{exactly} with integer values for every \(L\). To get an exact closed form one must keep \emph{all} characteristic-root contributions (or equivalently use the exact recurrence with enough initial values).
+
+\section{Connection to the six-vertex model}
+The SIAM News article on active hydraulics describes an experiment where microscopic rollers produce steady currents on a square grid of pipes, and the allowed junction flows match the six-vertex (square ice) rules \cite{FrancisSIAM2025,JorgeBartoloPRL2025}. The six-vertex model is a prototypical example where transfer matrices are the natural language: local vertex constraints are compiled into a matrix that propagates boundary data across a strip, and global counts or partition functions are traces/powers of that matrix \cite{LiebPhysRev1967,SutherlandPRL1967,BaxterBook1982}.
+
+My linear-snake counting problem is a 1D cousin of this idea. Each square cell is a local ``vertex gadget'' with a finite list of allowed edge patterns, and the hinge constraint is exactly a local compatibility rule between neighboring gadgets. The \(2\times 2\) matrix \(M\) is therefore the simplest transfer matrix one can write down: it propagates a single-bit boundary condition (the hinge color) along the line. After that local counting step, Burnside's lemma plays the role of a symmetry quotient to identify configurations that are the same after reversing the line, reflecting it, or globally flipping colors.
+
+\section{Real-world use case (why the linear arrangement matters)}
+If a physical system is built from identical modules in a line (microfluidic cells, repeated junction blocks, or any 1D chain of locally constrained gadgets), then the central engineering question is often: \emph{how large is the space of realizable global states}? The linear arrangement isolates that question because the geometry is fixed and the only growth comes from combining local admissible patterns subject to hinge-matching. The transfer matrix gives an exact scaling law, and the Burnside quotient reports the number of \emph{physically nonredundant} configurations when the device can be flipped end-to-end or when a global \(0\leftrightarrow 1\) relabeling is an equivalence.
+
+\bibliographystyle{amsplain}
+\bibliography{six_vertex_refs}
+
+\end{document}
