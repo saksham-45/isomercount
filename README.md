@@ -2,6 +2,8 @@
 
 Two complementary enumeration projects using **transfer matrices** and **Burnside's lemma** to count distinct structures under symmetry—no brute force, verified for correctness.
 
+> **Closed forms.** Both problems now have exact closed-form counters. See [CLOSED_FORM.md](CLOSED_FORM.md) for the derivations and [src/analysis/closed_form.py](src/analysis/closed_form.py) for production code.
+
 ## Repository layout
 
 - `src/cyclic/`: cyclic (ring) counting implementation
